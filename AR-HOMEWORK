@@ -1,0 +1,388 @@
+作业
+01---------------------------------------------------------------------------
+
+1 简述什么是ansible
+参考答案
+ansible是2013年推出的一款IT自动化和DevOps软件，2015年被RedHat收购。是基于Python研发，糅合很多老运维工具的优点，实现了批量操作系统配置，批量程序部署，批量运行命令等功能
+2 ansible可以实现什么功能
+参考答案
+自动化部署APP
+自动化管理配置项
+自动化持续交付
+自动化（AWS）云服务管理
+3 ansible优点有哪些
+参考答案
+只需要SSH和Python即可使用，无客户端
+ansible功能强大，模块丰富
+上手容易，门槛低
+基于Python开发，做二次开发更容易
+使用公司比较多，社区活跃
+
+
+02------------------------------------------------------------------
+
+
+1 阐述ansible七种武器有哪些
+
+参考答案
+
+第一种武器：
+
+ansible 命令，用于执行临时性的工作，必须掌握
+
+第二种武器：
+
+ansible-doc是ansible模块的文档说明，针对每个模块都有详细的说明及
+
+应用案例介绍，功能和Linux系统man命令类似，必须掌握
+
+第三种武器：
+
+ansible-console是ansible为用户提供的交互式工具，用户可以在
+
+ansible-console虚拟出来的终端上像Shell一样使用ansible内置的各种命令，这为习惯使用Shell交互方式的用户提供了良好的使用体验
+
+第四种武器：
+
+ansible-galaxy从github上下载管理Roles的一款工具，与python的
+
+pip类似
+
+第五种武器：
+
+ansible-playbook是日常应用中使用频率最高的命令，工作机制：通过读取
+
+先编写好的playbook文件实现批量管理，可以理解为按一定条件组成的ansible任
+
+务集，必须掌握
+
+第六种武器：
+
+ansible-vault主要用于配置文件加密，如编写的playbook文件中包含敏
+
+感信息，不想其他人随意查看，可用它加密/解密这个文件
+
+第七种武器：
+
+ansible有两种工作模式pull/push ，默认使用push模式工作，pull和
+
+push工作模式机制刚好相反
+
+适用场景：有大批量机器需要配置，即便使用高并发线程依旧要花费很多时间
+
+通常在配置大批量机器的场景下使用，灵活性稍有欠缺，但效率几乎可以无限
+
+提升，对运维人员的技术水平和前瞻性规划有较高要求
+2 什么是JSON以及其特性是什么
+
+参考答案
+
+JSON简介：
+
+JSON是JavaScript对象表示法，它是一种基于文本独立于语言的轻量级数
+
+据交换格式
+
+JSON中的分隔符限于单引号" ' " 、小括号" () " 、中括号" [ ] " 、大
+
+括号" { } " 、冒号 " : " 和逗号 " , "
+
+JSON特性：
+
+JSON是纯文本、具有"自我描述性"（人类可读）、具有层级结构（值中存在值）、
+
+可通过JavaScript进行解析
+3 简述YAML是什么
+
+参考答案
+
+是一个可读性高，用来表达数据序列的格式
+
+YAML（YAML Ain't Markup Language）参考了多种语言，如：C语言、Python、Perl等，并从XML、电子邮件的数据格式中获得灵感，Clark Evans在2001年首次发表了这种语言，目前已有数种编程语言或脚本语言支持这种语言
+4 简述什么是playbook
+
+参考答案
+
+playbook是ansible用于配置，部署和管理托管主机剧本，通过playbook的详细描述，执行其中的一系列tasks，可以让远端主机达到预期状态
+
+也可以说，playbook字面意思即剧本，现实中由演员按剧本表演，在ansible中由计算机进行安装，部署应用，提供对外服务，以及组织计算机处理各种各样的事情
+5 用playbook安装Apache,修改端口，配置ServerName，修改主页，设置开机自启
+
+参考答案
+
+    [root@ansible ansible]# vim http.yml
+    ---
+    - hosts: cache
+      remote_user: root
+      tasks:
+        - name: install one specific version of Apache
+          yum:
+            name: httpd        //安装Apache
+            state: installed
+        - lineinfile:
+            path: /etc/httpd/conf/httpd.conf
+            regexp: '^Listen '
+            line: 'Listen 8080'        //修改端口为8080
+        - replace:
+            path: /etc/httpd/conf/httpd.conf
+            regexp: '^#(ServerName).*'        //配置ServerName
+            replace: '\1 localhost'
+        - service:
+            name: httpd
+            enabled: yes        //开机自启
+            state: restarted
+        - copy:
+            src: /root/index.html        //修改主页，可以自己写个页面
+            dest: /var/www/html/index.html
+    [root@ansible ansible]# curl 192.168.1.56:8080
+    hello world
+    [root@ansible ansible]# ssh cache
+    Last login: Fri Sep  7 09:32:05 2018 from 192.168.1.51
+    [root@cache ~]# apachectl -t
+Syntax OK
+
+
+
+03---------------------------------------------------------------------------------
+
+1 简述什么是ELK
+参考答案
+ELK是一整套解决方案，是三个软件产品的首字母缩写，很多公司都在使用，如：Sina、携程、华为、美团等
+ELK分别代表的意思
+Elasticsearch：负责日志检索和储存
+Logstash：负责日志的收集和分析、处理
+Kibana：负责日志的可视化
+这三款软件都是开源软件，通常是配合使用，而且又先后归于Elastic.co公司名下，故被简称为ELK
+2 ELK可以实现什么功能
+参考答案
+在海量日志系统的运维中，可用于解决分布式日志数据集中式查询和管理、系统监控，包含系统硬件和应用各个组件的监控、故障排查、安全信息和事件管理、报表功能
+3 Elasticsearch主要特点
+参考答案
+1、实时分析
+2、分布式实时文件存储，并将每一个字段都编入索引
+3、文档导向，所有的对象全部是文档
+4、高可用性，易扩展，支持集群（Cluster） 、 分片和复制（Shards 和 Replicas）
+5、接口友好，支持JSON
+
+
+04----------------------------------------------------------------------------
+
+
+1 什么是kibana
+
+参考答案
+
+数据可视化平台工具
+2 Logstash插件有哪些
+
+参考答案
+
+codec类插件、file插件、tcp和udp插件、syslog插件、filter grok插件
+
+
+
+05----------------------------------------------------------------------------------
+
+
+1 大数据的由来
+
+参考答案
+
+随着计算机技术的发展，互联网的普及，信息的积累已经到了一个非常庞大的地步，信息的增长也在不断的加快，随着互联网、物联网建设的加快，信息更是爆炸是增长，收集、检索、统计这些信息越发困难，必须使用新的技术来解决这些问题
+2 什么是大数据
+
+参考答案
+
+数据指无法在一定时间范围内用常规软件工具进行捕捉、管理和处理的数据集合，需要新处理模式才能具有更强的决策力、洞察发现力和流程优化能力的海量、高增长率和多样化的信息资产
+
+是指从各种各样类型的数据中，快速获得有价值的信息
+3 简述大数据特性有哪些
+
+参考答案
+
+Volume (大体量)：可从数百TB到数十数百PB、甚至EB的规模
+
+Variety (多样性)：大数据包括各种格式和形态的数据
+
+Velocity (时效性)：很多大数据需要在一定的时间限度下得到及时处理
+
+Veracity (准确性)：处理的结果要保证一定的准确性
+
+Value (大价值)：大数据包含很多深度的价值，大数据分析挖掘和利用将带来巨大的商业价值
+4 Hadoop常用组件以及核心组件有哪些
+
+参考答案
+
+HDFS：Hadoop分布式文件系统（核心组件）
+
+MapReduce：分布式计算框架（核心组件）
+
+Yarn：集群资源管理系统（核心组件）
+
+Zookeeper：分布式协作服务
+
+Hbase：分布式列存数据库
+
+Hive：基于Hadoop的数据仓库
+
+Sqoop：数据同步工具
+
+Pig：基于Hadoop的数据流系统
+
+Mahout：数据挖掘算法库
+
+Flume：日志收集工具
+5 Hadoop如何实现统计词频
+
+参考答案
+
+    [root@nn01 ~]# cd /usr/local/hadoop/
+    [root@nn01 hadoop]# mkdir /usr/local/hadoop/aa
+    [root@nn01 hadoop]# ls
+    bin  etc  include  lib  libexec  LICENSE.txt  NOTICE.txt  aa  README.txt  sbin  share
+    [root@nn01 hadoop]# cp *.txt /usr/local/hadoop/aa
+    [root@nn01 hadoop]# ./bin/hadoop jar  \
+     share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.6.jar  wordcount aa bb        //wordcount为参数 统计aa这个文件夹，存到bb这个文件里面（这个文件不能存在，要是存在会报错，是为了防止数据覆盖）
+[root@nn01 hadoop]#  cat   bb/part-r-00000    //查看
+
+
+
+06--------------------------------------------------------------------
+
+1 如何查看Hadoop集群文件系统的根以及怎么创建
+
+参考答案
+
+查看
+
+     [root@nn01 hadoop]# /usr/local/hadoop/bin/hadoop fs -ls /
+
+创建
+
+    [root@nn01 hadoop]# /usr/local/hadoop/bin/hadoop fs -mkdir  /aaa    
+
+2 如何增加一个新的节点
+
+参考答案
+
+1）增加一个新的节点node4
+
+    [root@hadoop5 ~]# echo node4 > /etc/hostname     //更改主机名为node4
+    [root@hadoop5 ~]# hostname node4
+    [root@node4 ~]# yum -y install rsync
+    [root@node4 ~]# yum -y install java-1.8.0-openjdk-devel
+    [root@node4 ~]# mkdir /var/hadoop
+    [root@nn01 .ssh]# ssh-copy-id 192.168.1.25
+    [root@nn01 .ssh]# vim /etc/hosts
+    192.168.1.21  nn01
+    192.168.1.22  node1
+    192.168.1.23  node2
+    192.168.1.24  node3
+    192.168.1.25  node4
+    [root@nn01 .ssh]# scp /etc/hosts 192.168.1.25:/etc/
+    [root@nn01 ~]# cd /usr/local/hadoop/
+    [root@nn01 hadoop]# vim ./etc/hadoop/slaves
+    node1
+    node2
+    node3
+    node4
+    [root@nn01 hadoop]# for i in {22..25}; do rsync -aSH --delete /usr/local/hadoop/
+    \ 192.168.1.$i:/usr/local/hadoop/  -e 'ssh' & done        //同步配置
+    [1] 1841
+    [2] 1842
+    [3] 1843
+    [4] 1844
+    [root@node4 hadoop]# ./sbin/hadoop-daemon.sh start datanode  //启动
+    2）查看状态    
+    [root@node4 hadoop]# jps
+    24439 Jps
+    24351 DataNode
+
+3 如何设置同步带宽
+
+参考答案
+
+     [root@node4 hadoop]# ./bin/hdfs dfsadmin -setBalancerBandwidth 60000000
+    Balancer bandwidth is set to 60000000
+    [root@node4 hadoop]# ./sbin/start-balancer.sh
+
+4 启动NFS需要注意什么
+
+参考答案
+
+portmap服务只能用root用户启动，nfs3只能用代理用户启动，用root用户执行jps可以看到portmap和nfs3，代理用户执行jps看不到portmap
+
+    [root@nfsgw ~]# /usr/local/hadoop/sbin/hadoop-daemon.sh --script ./bin/hdfs start portmap        //portmap服务只能用root用户启动
+    starting portmap, logging to /usr/local/hadoop/logs/hadoop-root-portmap-nfsgw.out
+    [root@nfsgw ~]# jps
+    23714 Jps
+    23670 Portmap
+    [root@nfsgw ~]# su - nfs
+    Last login: Mon Sep 10 12:31:58 CST 2018 on pts/0
+    [nfs@nfsgw ~]$ cd /usr/local/hadoop/
+    [nfs@nfsgw hadoop]$ ./sbin/hadoop-daemon.sh  --script ./bin/hdfs start nfs3  
+    //nfs3只能用代理用户启动
+    starting nfs3, logging to /usr/local/hadoop/logs/hadoop-nfs-nfs3-nfsgw.out
+    [nfs@nfsgw hadoop]$ jps                    
+    1362 Jps
+    1309 Nfs3 
+    [root@nfsgw hadoop]# jps            //root用户执行可以看到portmap和nfs3
+    1216 Portmap
+    1309 Nfs3
+    1374 Jps
+
+
+07------------------------------------------------------------------------
+
+
+1 简述什么是Zookeeper以及其作用
+
+参考答案
+
+什么是Zookeeper：
+
+Zookeeper是一个开源的分布式应用程序协调服务
+
+作用：
+
+用来保证数据在集群间的事务一致性
+2 简述Zookeeper角色与特性
+
+参考答案
+
+Leader：接受所有Follower的提案请求并统一协调发起提案的投票，负责与所有的Follower进行内部数据交换
+
+Follower：直接为客户端服务并参与提案的投票，同时与Leader进行数据交换
+
+Observer：直接为客户端服务但并不参与提案的投票，同时也与Leader进行数据交换
+3 如何利用 api 查看Zookeeper的状态
+
+参考答案
+
+    [root@nn01 conf]# /usr/local/zookeeper/bin/zkServer.sh start
+    [root@nn01 conf]# vim api.sh
+    #!/bin/bash
+    function getstatus(){
+        exec 9<>/dev/tcp/$1/2181 2>/dev/null
+        echo stat >&9
+        MODE=$(cat <&9 |grep -Po "(?<=Mode:).*")
+        exec 9<&-
+        echo ${MODE:-NULL}
+    }
+    for i in node{1..3} nn01;do
+        echo -ne "${i}\t"
+        getstatus ${i}
+    done
+    [root@nn01 conf]# chmod 755 api.sh
+    [root@nn01 conf]# ./api.sh 
+    node1    follower
+    node2    leader
+    node3    follower 
+    nn01    observer
+
+4 如何在Kafka集群里创建一个topic
+
+参考答案
+
+    [root@node1 local]# /usr/local/kafka/bin/kafka-topics.sh --create --partitions 1 --replication-factor 1 --zookeeper node3:2181 --topic aa    
+    Created topic "aa".
