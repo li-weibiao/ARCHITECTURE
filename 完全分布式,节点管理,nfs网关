@@ -1,0 +1,367 @@
+NSD ARCHITECTURE DAY06
+1.	案例1：安装与部署 
+2.	案例2：Hadoop词频统计 
+3.	案例3：节点管理 
+4.	案例4：NFS配置 
+1 案例1：安装与部署
+1.1 问题
+本案例要求：
+•	对mapred和yarn文件进行配置 
+•	验证访问Hadoop 
+1.2 方案
+在day05准备好的环境下给master （nn01）主机添加ResourceManager的角色，在node1，node2，node3上面添加NodeManager的角色，如图-1所示：
+ 
+ 
+图-1
+1.3 步骤
+实现此案例需要按照如下步骤进行。
+步骤一：安装与部署hadoop
+1）配置mapred-site（nn01上面操作）
+1.	[root@nn01 ~]# cd /usr/local/hadoop/etc/hadoop/
+2.	[root@nn01 hadoop]# mv mapred-site.xml.template mapred-site.xml
+3.	[root@nn01 hadoop]# vim mapred-site.xml
+4.	<configuration>
+5.	<property>
+6.	        <name>mapreduce.framework.name</name>
+7.	        <value>yarn</value>
+8.	    </property>
+9.	</configuration>
+2）配置yarn-site（nn01上面操作）
+1.	[root@nn01 hadoop]# vim yarn-site.xml
+2.	<configuration>
+3.	
+4.	<!-- Site specific YARN configuration properties -->
+5.	<property>
+6.	        <name>yarn.resourcemanager.hostname</name>
+7.	        <value>nn01</value>
+8.	    </property>
+9.	    <property>
+10.	        <name>yarn.nodemanager.aux-services</name>
+11.	        <value>mapreduce_shuffle</value>
+12.	    </property>
+13.	</configuration>
+3）同步配置（nn01上面操作）
+1.	[root@nn01 hadoop]# for i in {62..64}; do rsync -aSH --delete /usr/local/hadoop/ 192.168.1.$i:/usr/local/hadoop/  -e 'ssh' & done
+2.	[1] 712
+3.	[2] 713
+4.	[3] 714
+4）验证配置（nn01上面操作）
+1.	[root@nn01 hadoop]# cd /usr/local/hadoop
+2.	[root@nn01 hadoop]# ./sbin/start-dfs.sh
+3.	Starting namenodes on [nn01]
+4.	nn01: namenode running as process 23408. Stop it first.
+5.	node1: datanode running as process 22409. Stop it first.
+6.	node2: datanode running as process 22367. Stop it first.
+7.	node3: datanode running as process 22356. Stop it first.
+8.	Starting secondary namenodes [nn01]
+9.	nn01: secondarynamenode running as process 23591. Stop it first.
+10.	[root@nn01 hadoop]# ./sbin/start-yarn.sh
+11.	starting yarn daemons
+12.	starting resourcemanager, logging to /usr/local/hadoop/logs/yarn-root-resourcemanager-nn01.out
+13.	node2: starting nodemanager, logging to /usr/local/hadoop/logs/yarn-root-nodemanager-node2.out
+14.	node3: starting nodemanager, logging to /usr/local/hadoop/logs/yarn-root-nodemanager-node3.out
+15.	node1: starting nodemanager, logging to /usr/local/hadoop/logs/yarn-root-nodemanager-node1.out
+16.	[root@nn01 hadoop]# jps    //nn01查看有ResourceManager
+17.	23408 NameNode
+18.	1043 ResourceManager
+19.	1302 Jps
+20.	23591 SecondaryNameNode
+21.	[root@nn01 hadoop]# ssh node1 jps        //node1查看有NodeManager
+22.	25777 Jps
+23.	22409 DataNode
+24.	25673 NodeManager
+25.	[root@nn01 hadoop]# ssh node2 jps        //node1查看有NodeManager
+26.	25729 Jps
+27.	25625 NodeManager
+28.	22367 DataNode
+29.	[root@nn01 hadoop]# ssh node3 jps        //node1查看有NodeManager
+30.	22356 DataNode
+31.	25620 NodeManager
+32.	25724 Jps
+5）web访问hadoop
+1.	http://192.168.1.60:50070/            //--namenode web页面（nn01）
+2.	http://192.168.1.60:50090/        //--secondory namenode web页面（nn01）
+3.	http://192.168.1.61:50075/        //--datanode web页面（node1,node2,node3）
+4.	http://192.168.1.60:8088/        //--resourcemanager web页面（nn01）
+5.	http://192.168.1.61:8042/        //--nodemanager web页面（node1,node2,node3）
+2 案例2：Hadoop词频统计
+2.1 问题
+本案例要求：
+•	在集群文件系统里创建文件夹 
+•	上传要分析的文件到目录中 
+•	分析上传文件 
+•	展示结果 
+2.2 步骤
+实现此案例需要按照如下步骤进行。
+步骤一：词频统计
+1.	[root@nn01 hadoop]# ./bin/hadoop fs -ls /        //查看集群文件系统的根，没有内容
+2.	[root@nn01 hadoop]# ./bin/hadoop fs -mkdir  /aaa        
+3.	//在集群文件系统下创建aaa目录
+4.	[root@nn01 hadoop]# ./bin/hadoop fs -ls /        //再次查看，有刚创建的aaa目录
+5.	Found 1 items
+6.	drwxr-xr-x   - root supergroup          0 2018-09-10 09:56 /aaa
+7.	[root@nn01 hadoop]#  ./bin/hadoop fs -touchz  /fa    //在集群文件系统下创建fa文件
+8.	[root@nn01 hadoop]# ./bin/hadoop fs -put *.txt /aaa     
+9.	//上传*.txt到集群文件系统下的aaa目录
+10.	[root@nn01 hadoop]#  ./bin/hadoop fs -ls /aaa    //查看
+11.	Found 3 items
+12.	-rw-r--r--   2 root supergroup      86424 2018-09-10 09:58 /aaa/LICENSE.txt
+13.	-rw-r--r--   2 root supergroup      14978 2018-09-10 09:58 /aaa/NOTICE.txt
+14.	-rw-r--r--   2 root supergroup       1366 2018-09-10 09:58 /aaa/README.txt
+15.	[root@nn01 hadoop]# ./bin/hadoop fs -get  /aaa  //下载集群文件系统的aaa目录
+16.	[root@nn01 hadoop]# ./bin/hadoop jar  \
+17.	 share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.7.jar  wordcount /aaa /bbb    //hadoop集群分析大数据，hadoop集群/aaa里的数据存到hadoop集群/bbb下
+18.	[root@nn01 hadoop]# ./bin/hadoop fs -cat /bbb/*        //查看集群里的数据
+3 案例3：节点管理
+3.1 问题
+本案例要求：
+•	增加一个新的节点 
+•	查看状态 
+•	删除节点 
+3.2 方案
+另外准备两台主机，node4和nfsgw，作为新添加的节点和网关，具体要求如表-2所示：
+表-2
+ 
+3.3 步骤
+实现此案例需要按照如下步骤进行。
+步骤一：增加节点
+1）增加一个新的节点node4
+1.	[root@hadoop5 ~]# echo node4 > /etc/hostname     //更改主机名为node4
+2.	[root@hadoop5 ~]# hostname node4
+3.	[root@node4 ~]# yum -y install java-1.8.0-openjdk-devel
+4.	[root@node4 ~]# mkdir /var/hadoop
+5.	[root@nn01 .ssh]# ssh-copy-id 192.168.1.64
+6.	[root@nn01 .ssh]# vim /etc/hosts
+7.	192.168.1.60  nn01
+8.	192.168.1.61  node1
+9.	192.168.1.62  node2
+10.	192.168.1.63  node3
+11.	192.168.1.64  node4
+12.	[root@nn01 .ssh]# scp /etc/hosts 192.168.1.64:/etc/
+13.	[root@nn01 ~]# cd /usr/local/hadoop/
+14.	[root@nn01 hadoop]# vim ./etc/hadoop/slaves
+15.	node1
+16.	node2
+17.	node3
+18.	node4
+19.	[root@nn01 hadoop]# for i in {61..64}; do rsync -aSH --delete /usr/local/hadoop/
+20.	\ 192.168.1.$i:/usr/local/hadoop/  -e 'ssh' & done        //同步配置
+21.	[1] 1841
+22.	[2] 1842
+23.	[3] 1843
+24.	[4] 1844
+25.	[root@node4 ~]# cd /usr/local/hadoop/
+26.	[root@node4 hadoop]# ./sbin/hadoop-daemon.sh start datanode  //启动
+2）查看状态
+1.	[root@node4 hadoop]# jps
+2.	24439 Jps
+3.	24351 DataNode
+3）设置同步带宽
+1.	[root@node4 hadoop]# ./bin/hdfs dfsadmin -setBalancerBandwidth 60000000
+2.	Balancer bandwidth is set to 60000000
+3.	[root@node4 hadoop]# ./sbin/start-balancer.sh
+4）删除节点
+1.	[root@nn01 hadoop]# vim /usr/local/hadoop/etc/hadoop/slaves        
+2.	//去掉之前添加的node4
+3.	node1
+4.	node2
+5.	node3
+6.	[root@nn01 hadoop]# vim /usr/local/hadoop/etc/hadoop/hdfs-site.xml        
+7.	//在此配置文件里面加入下面四行
+8.	<property>                                      
+9.	    <name>dfs.hosts.exclude</name>
+10.	    <value>/usr/local/hadoop/etc/hadoop/exclude</value>
+11.	</property>
+12.	
+13.	[root@nn01 hadoop]# vim /usr/local/hadoop/etc/hadoop/exclude
+14.	node4
+5）导出数据
+1.	[root@nn01 hadoop]# ./bin/hdfs dfsadmin -refreshNodes
+2.	Refresh nodes successful
+3.	[root@nn01 hadoop]# ./bin/hdfs dfsadmin -report  //查看node4显示Decommissioned
+4.	
+5.	Name: 192.168.1.64:50010 (node4)
+6.	Hostname: node4
+7.	Decommission Status : Decommissioned
+8.	Configured Capacity: 2135949312 (1.99 GB)
+9.	DFS Used: 4096 (4 KB)
+10.	Non DFS Used: 1861509120 (1.73 GB)
+11.	DFS Remaining: 274436096 (261.72 MB)
+12.	DFS Used%: 0.00%
+13.	DFS Remaining%: 12.85%
+14.	Configured Cache Capacity: 0 (0 B)
+15.	Cache Used: 0 (0 B)
+16.	Cache Remaining: 0 (0 B)
+17.	Cache Used%: 100.00%
+18.	Cache Remaining%: 0.00%
+19.	Xceivers: 1
+20.	Last contact: Tue Mar 05 17:17:09 CST 2019
+21.	
+22.	
+23.	[root@node4 hadoop]# ./sbin/hadoop-daemon.sh stop datanode    //停止datanode
+24.	stopping datanode
+25.	[root@node4 hadoop]# ./sbin/yarn-daemon.sh start nodemanager             
+26.	//yarn 增加 nodemanager
+27.	[root@node4 hadoop]# ./sbin/yarn-daemon.sh stop  nodemanager  //停止nodemanager
+28.	stopping nodemanager
+29.	[root@node4 hadoop]# ./bin/yarn node -list        
+30.	//yarn 查看节点状态，还是有node4节点，要过一段时间才会消失
+31.	Total Nodes:4
+32.	         Node-Id         Node-State    Node-Http-Address    Number-of-Running-Containers
+33.	     node3:34628            RUNNING           node3:8042                               0
+34.	     node2:36300            RUNNING           node2:8042                               0
+35.	     node4:42459            RUNNING           node4:8042                               0
+36.	     node1:39196            RUNNING           node1:8042                               0
+4 案例4：NFS配置
+4.1 问题
+本案例要求：
+•	创建代理用户 
+•	启动一个新系统， 
+•	启动服务 
+•	挂载NFS并实现开机自启 
+4.2 步骤
+实现此案例需要按照如下步骤进行。
+步骤一：基础准备
+1）更改主机名，配置/etc/hosts（/etc/hosts在nn01和nfsgw上面配置）
+1.	[root@localhost ~]# echo nfsgw > /etc/hostname 
+2.	[root@localhost ~]# hostname nfsgw
+3.	[root@nn01 hadoop]# vim /etc/hosts
+4.	192.168.1.60  nn01
+5.	192.168.1.61  node1
+6.	192.168.1.62  node2
+7.	192.168.1.63  node3
+8.	192.168.1.64  node4
+9.	192.168.1.65  nfsgw
+2）创建代理用户（nn01和nfsgw上面操作），以nn01为例子
+1.	[root@nn01 hadoop]# groupadd -g 800 nfsuser
+2.	[root@nn01 hadoop]# useradd -u 800 -g 800 -r -d /var/hadoop nfsuser
+3）配置core-site.xml
+1.	[root@nn01 hadoop]# ./sbin/stop-all.sh   //停止所有服务
+2.	This script is Deprecated. Instead use stop-dfs.sh and stop-yarn.sh
+3.	Stopping namenodes on [nn01]
+4.	nn01: stopping namenode
+5.	node2: stopping datanode
+6.	node4: no datanode to stop
+7.	node3: stopping datanode
+8.	node1: stopping datanode
+9.	Stopping secondary namenodes [nn01]
+10.	nn01: stopping secondarynamenode
+11.	stopping yarn daemons
+12.	stopping resourcemanager
+13.	node2: stopping nodemanager
+14.	node3: stopping nodemanager
+15.	node4: no nodemanager to stop
+16.	node1: stopping nodemanager
+17.	...
+18.	
+19.	[root@nn01 hadoop]# cd etc/hadoop
+20.	[root@nn01 hadoop]# >exclude
+21.	[root@nn01 hadoop]# vim core-site.xml
+22.	    <property>
+23.	        <name>hadoop.proxyuser.nfsuser.groups</name>
+24.	        <value>*</value>
+25.	    </property>
+26.	    <property>
+27.	        <name>hadoop.proxyuser.nfsuser.hosts</name>
+28.	        <value>*</value>
+29.	    </property>
+4）同步配置到node1，node2，node3
+1.	[root@nn01 hadoop]# for i in {61..63}; do rsync -aSH --delete /usr/local/hadoop/ 192.168.1.$i:/usr/local/hadoop/  -e 'ssh' & done
+2.	[4] 2722
+3.	[5] 2723
+4.	[6] 2724
+5）启动集群
+1.	[root@nn01 hadoop]# /usr/local/hadoop/sbin/start-dfs.sh
+6）查看状态
+1.	[root@nn01 hadoop]# /usr/local/hadoop/bin/hdfs  dfsadmin -report
+步骤二：NFSGW配置
+1）安装java-1.8.0-openjdk-devel和rsync
+1.	[root@nfsgw ~]# yum -y install java-1.8.0-openjdk-devel
+2.	[root@nn01 hadoop]# rsync -avSH --delete \ 
+3.	/usr/local/hadoop/ 192.168.1.65:/usr/local/hadoop/  -e 'ssh'
+2）创建数据根目录 /var/hadoop（在NFSGW主机上面操作）
+1.	[root@nfsgw ~]# mkdir /var/hadoop
+3）创建转储目录，并给用户nfs 赋权
+1.	[root@nfsgw ~]# mkdir /var/nfstmp
+2.	[root@nfsgw ~]# chown nfsuser:nfsuser /var/nfstmp
+4）给/usr/local/hadoop/logs赋权（在NFSGW主机上面操作）
+1.	[root@nfsgw ~]# setfacl -m user:nfsuser:rwx /usr/local/hadoop/logs
+2.	[root@nfsgw ~]# vim /usr/local/hadoop/etc/hadoop/hdfs-site.xml
+3.	    <property>
+4.	        <name>nfs.exports.allowed.hosts</name>
+5.	        <value>* rw</value>
+6.	    </property>
+7.	    <property>
+8.	        <name>nfs.dump.dir</name>
+9.	        <value>/var/nfstmp</value>
+10.	    </property>
+5）可以创建和删除即可
+1.	[root@nfsgw ~]# su - nfs
+2.	[nfs@nfsgw ~]$ cd /var/nfstmp/
+3.	[nfs@nfsgw nfstmp]$ touch 1
+4.	[nfs@nfsgw nfstmp]$ ls
+5.	1
+6.	[nfs@nfsgw nfstmp]$ rm -rf 1
+7.	[nfs@nfsgw nfstmp]$ ls
+8.	[nfs@nfsgw nfstmp]$ cd /usr/local/hadoop/logs/
+9.	[nfs@nfsgw logs]$ touch 1
+10.	[nfs@nfsgw logs]$ ls
+11.	1 hadoop-root-secondarynamenode-nn01.log    yarn-root-resourcemanager-nn01.log
+12.	hadoop-root-namenode-nn01.log hadoop-root-secondarynamenode-nn01.out    yarn-root-resourcemanager-nn01.out
+13.	hadoop-root-namenode-nn01.out    hadoop-root-secondarynamenode-nn01.out.1
+14.	hadoop-root-namenode-nn01.out.1  SecurityAuth-root.audit
+15.	[nfs@nfsgw logs]$ rm -rf 1
+16.	[nfs@nfsgw logs]$ ls
+6）启动服务
+1.	[root@nfsgw ~]# /usr/local/hadoop/sbin/hadoop-daemon.sh --script ./bin/hdfs start portmap        //portmap服务只能用root用户启动
+2.	starting portmap, logging to /usr/local/hadoop/logs/hadoop-root-portmap-nfsgw.out
+3.	[root@nfsgw ~]# jps
+4.	23714 Jps
+5.	23670 Portmap
+6.	
+7.	[root@nfsgw ~]# su - nfs
+8.	Last login: Mon Sep 10 12:31:58 CST 2018 on pts/0
+9.	[nfs@nfsgw ~]$ cd /usr/local/hadoop/
+10.	[nfs@nfsgw hadoop]$ ./sbin/hadoop-daemon.sh  --script ./bin/hdfs start nfs3  
+11.	//nfs3只能用代理用户启动
+12.	starting nfs3, logging to /usr/local/hadoop/logs/hadoop-nfs-nfs3-nfsgw.out
+13.	[nfs@nfsgw hadoop]$ jps                    
+14.	1362 Jps
+15.	1309 Nfs3 
+16.	[root@nfsgw hadoop]# jps            //root用户执行可以看到portmap和nfs3
+17.	1216 Portmap
+18.	1309 Nfs3
+19.	1374 Jps
+7）实现客户端挂载（客户端可以用node4这台主机）
+1.	[root@node4 ~]# rm -rf /usr/local/hadoop
+2.	[root@node4 ~]# yum -y install nfs-utils
+3.	[root@node4 ~]# mount -t nfs -o \
+4.	vers=3,proto=tcp,nolock,noatime,sync,noacl 192.168.1.64:/  /mnt/  //挂载
+5.	[root@node4 ~]# cd /mnt/
+6.	[root@node4 mnt]# ls
+7.	aaa  bbb  fa  system  tmp
+8.	[root@node4 mnt]# touch a
+9.	[root@node4 mnt]# ls
+10.	a  aaa  bbb  fa  system  tmp
+11.	[root@node4 mnt]# rm -rf a
+12.	[root@node4 mnt]# ls
+13.	aaa  bbb  fa  system  tmp
+8）实现开机自动挂载
+1.	[root@node4 ~]# vim /etc/fstab
+2.	192.168.1.64:/  /mnt/ nfs  vers=3,proto=tcp,nolock,noatime,sync,noacl,_netdev 0 0 
+3.	[root@node4 ~]# mount -a
+4.	[root@node4 ~]# df -h
+5.	192.168.1.26:/   64G  6.2G   58G  10% /mnt
+6.	
+7.	[root@node4 ~]# rpcinfo -p 192.168.1.64
+8.	   program vers proto   port  service
+9.	    100005    3   udp   4242  mountd
+10.	    100005    1   tcp   4242  mountd
+11.	    100000    2   udp    111  portmapper
+12.	    100000    2   tcp    111  portmapper
+13.	    100005    3   tcp   4242  mountd
+14.	    100005    2   tcp   4242  mountd
+15.	    100003    3   tcp   2049  nfs
+16.	    100005    2   udp   4242  mountd
+17.	    100005    1   udp   4242  mountd
+
