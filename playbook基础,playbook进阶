@@ -1,0 +1,455 @@
+NSD ARCHITECTURE DAY02
+1.	练习1：playbook练习 
+2.	案例2：变量练习 
+3.	案例3：handlers练习 
+4.	案例4：编写playbook 
+1 练习1：playbook练习
+1.1 问题
+本案例要求：
+•	安装Apache 
+•	修改监听端口为8080 
+•	设置默认主页hello world 
+•	启动服务 
+•	设置开机自启 
+1.2 步骤
+实现此案例需要按照如下步骤进行。
+步骤一：playbook的ping脚本检测
+1.	[root@ansible ansible]# vim ping.yml
+2.	---
+3.	- hosts: all
+4.	  remote_user: root
+5.	  tasks:
+6.	     - ping:
+7.	[root@ansible ansible]# ansible-playbook ping.yml  //输出结果
+8.	
+9.	PLAY [all] *******************************************************************
+10.	
+11.	TASK [Gathering Facts] *******************************************************
+12.	ok: [web1]
+13.	ok: [web2]
+14.	ok: [cache]
+15.	ok: [db1]
+16.	ok: [db2]
+17.	
+18.	TASK [ping] ******************************************************************
+19.	ok: [db1]
+20.	ok: [web2]
+21.	ok: [cache]
+22.	ok: [web1]
+23.	ok: [db2]
+24.	
+25.	PLAY RECAP *******************************************************************
+26.	cache                      : ok=2    changed=0    unreachable=0    failed=0   
+27.	db1                        : ok=2    changed=0    unreachable=0    failed=0   
+28.	db2                        : ok=2    changed=0    unreachable=0    failed=0   
+29.	web1                       : ok=2    changed=0    unreachable=0    failed=0   
+30.	web2                       : ok=2    changed=0    unreachable=0    failed=0
+注意：如果检测的时候出错，会在当前的目录生成一个新的文件（以.retry结尾），可以去这个文件里面看是哪个主机的错
+步骤二：用playbook安装Apache,修改端口，配置ServerName，修改主页，设置开机自启
+1.	[root@ansible ansible]# vim http.yml
+2.	
+3.	---
+4.	- hosts: cache
+5.	  remote_user: root
+6.	  tasks:
+7.	    - name: install one specific version of Apache
+8.	      yum:
+9.	        name: httpd        //安装Apache
+10.	        state: installed
+11.	    - lineinfile:
+12.	        path: /etc/httpd/conf/httpd.conf
+13.	        regexp: '^Listen '
+14.	        line: 'Listen 8080'        //修改端口为8080
+15.	    - service:
+16.	        name: httpd
+17.	        enabled: yes        //开机自启
+18.	        state: restarted
+19.	    - copy:
+20.	        src: /root/index.html        //修改主页，可以自己写个页面
+21.	        dest: /var/www/html/index.html
+22.	[root@ansible ansible]# ansible-playbook http.yml
+23.	[root@ansible ansible]# curl 192.168.1.45:8080
+24.	hello world 
+25.	[root@ansible ansible]# ssh cache
+26.	Last login: Fri Sep  7 09:32:05 2018 from 192.168.1.40
+27.	[root@cache ~]# apachectl -t
+28.	Syntax OK
+2 案例2：变量练习
+2.1 问题
+本案例要求熟悉playbook进阶：
+•	练习使用user模块添加用户 
+•	练习使用变量简化task，让play通用性更强 
+•	练习使用过滤器 
+2.2 步骤
+实现此案例需要按照如下步骤进行。
+步骤一：使用user模块添加用户，并修改密码
+1.	[root@ansible ansible]# vim user.yml
+2.	---
+3.	- hosts: cache
+4.	  remote_user: root
+5.	  vars:
+6.	    username: xiaoming
+7.	  tasks:
+8.	    - name: create user "{{username}}"
+9.	      user: group=wheel uid=1000 name={{username}}
+10.	    - shell: echo 123456 | passwd --stdin xiaoming
+11.	    - shell: chage -d 0 {{username}}
+12.	[root@ansible ansible]# ansible-playbook user.yml   //执行结果
+13.	
+14.	PLAY [cache] ******************************************************************
+15.	
+16.	TASK [Gathering Facts] ********************************************************
+17.	ok: [cache]
+18.	
+19.	TASK [create user " xiaoming "] ***********************************************
+20.	changed: [cache]
+21.	
+22.	TASK [command] ****************************************************************
+23.	changed: [cache]
+24.	
+25.	TASK [command] ****************************************************************
+26.	changed: [cache]
+27.	
+28.	PLAY RECAP ********************************************************************
+29.	cache                      : ok=4    changed=3    unreachable=0    failed=0
+步骤二：变量过滤器，创建一个用户，设置密码
+1.	[root@ansible ansible]# vim user1.yml
+2.	---
+3.	- hosts: cache
+4.	  remote_user: root
+5.	  tasks:
+6.	   - user:
+7.	       name: lisi
+8.	       group: root
+9.	       password: "{{'123456' | password_hash('sha512')}}"
+10.	   - shell: chage -d 0 lisi
+11.	[root@ansible ansible]# ansible-playbook user1.yml 
+12.	
+13.	PLAY [cache] ******************************************************************
+14.	
+15.	TASK [Gathering Facts] ********************************************************
+16.	ok: [cache]
+17.	
+18.	TASK [user] *******************************************************************
+19.	changed: [cache] 
+20.	
+21.	TASK [command] ****************************************************************
+22.	changed: [cache]
+23.	
+24.	PLAY RECAP ********************************************************************
+25.	cache                      : ok=3    changed=2    unreachable=0    failed=0   
+步骤三：定义一个变量创建用户
+1.	[root@ansible ansible]# vim user2.yml
+2.	
+3.	---
+4.	- hosts: cache
+5.	  remote_user: root
+6.	  vars:
+7.	    user: zhangs
+8.	  tasks:
+9.	    - user:
+10.	        name: "{{user}}"
+11.	        group: root
+12.	        password: "{{'123456' | password_hash('sha512')}}"
+13.	    - shell: chage -d 0 "{{user}}"
+14.	[root@ansible ansible]# ansible-playbook user2.yml
+15.	PLAY [cache] ******************************************************************
+16.	
+17.	TASK [Gathering Facts] ********************************************************
+18.	ok: [cache]
+19.	
+20.	TASK [user] *******************************************************************
+21.	changed: [cache]
+22.	
+23.	TASK [command] ****************************************************************
+24.	changed: [cache]
+25.	
+26.	PLAY RECAP ********************************************************************
+27.	cache                      : ok=3    changed=2    unreachable=0    failed=0   
+3 案例3：handlers练习
+3.1 问题
+本案例要求：
+•	安装Apache软件 
+•	配置文件，重新载入配置文件让服务生效 
+•	使用handlers来实现 
+3.2 步骤
+实现此案例需要按照如下步骤进行。
+步骤一：error
+playbook从上往下顺序执行，若报错，后面的命令不会在执行，若想解决可以使用ignoring_errors:True(使用这个，会有报错信息，告诉你错误忽略，继续执行下面的命令)
+1.	[root@ansible ansible]# vim error.yml
+2.	---
+3.	- hosts: web
+4.	  remote_user: root
+5.	  tasks:
+6.	    - shell: mkdir /tmp/cache
+7.	    - name: ReStart service httpd
+8.	      service:
+9.	        name: httpd
+10.	        state: restarted
+11.	    - name: run  some command
+12.	      shell: /usr/bin/somecommand
+13.	      ignore_errors: True
+14.	[root@ansible ansible]# ansible-playbook error.yml 
+15.	
+16.	PLAY [web] ***********************************************************************************
+17.	
+18.	TASK [Gathering Facts] ***********************************************************************************
+19.	ok: [web2]
+20.	ok: [web1]
+21.	
+22.	TASK [command] ***********************************************************************************
+23.	 [WARNING]: Consider using file module with state=directory rather than running mkdir
+24.	
+25.	fatal: [web1]: FAILED! => {"changed": true, "cmd": "mkdir /tmp/cache", "delta": "0:00:00.004799", "end": "2019-04-11 14:57:11.582036", "msg": "non-zero return code", "rc": 1, "start": "2019-04-11 14:57:11.577237", "stderr": "mkdir: \u65e0\u6cd5\u521b\u5efa\u76ee\u5f55\"/tmp/cache\": \u6587\u4ef6\u5df2\u5b58\u5728", "stderr_lines": ["mkdir: \u65e0\u6cd5\u521b\u5efa\u76ee\u5f55\"/tmp/cache\": \u6587\u4ef6\u5df2\u5b58\u5728"], "stdout": "", "stdout_lines": []}
+26.	changed: [web2]
+27.	
+28.	TASK [ReStart service httpd] *****************************************************************************
+29.	fatal: [web2]: FAILED! => {"changed": false, "msg": "Could not find the requested service httpd: host"}
+30.	    to retry, use: --limit @/etc/ansible/error.retry
+31.	
+32.	PLAY RECAP ***********************************************************************************
+33.	web1                       : ok=1    changed=0    unreachable=0    failed=1   
+34.	web2                       : ok=2    changed=1    unreachable=0    failed=1   
+35.	
+36.	[root@ansible ansible]#
+步骤二：tags给指定的任务定义一个调用标识
+1）tags 样例
+1.	[root@ansible ansible]# vim adhttp.yml
+2.	---
+3.	- hosts: cache
+4.	  remote_user: root
+5.	  tasks:
+6.	    - copy:
+7.	        src: /root/httpd.conf
+8.	        dest:  /etc/httpd/conf/httpd.conf
+9.	        owner: apache
+10.	        group: apache
+11.	        mode: 0644
+12.	      tags: syncconf
+2）调用方式
+1.	[root@ansible ansible]# ansible-playbook tags.yml  -t syncconf
+2.	
+3.	PLAY [cache] ***********************************************************************************
+4.	
+5.	TASK [Gathering Facts] ***********************************************************************************
+6.	ok: [cache]
+7.	
+8.	TASK [copy] ***********************************************************************************
+9.	changed: [cache]
+10.	
+11.	PLAY RECAP ***********************************************************************************
+12.	cache                      : ok=2    changed=1    unreachable=0    failed=0
+步骤三： handlers
+关注的资源发生变化时采取的操作
+1) 使用handlers来配置文件，重新载入配置文件让服务生效
+1.	[root@ansible ansible]# vim handers.yml    
+2.	---
+3.	- hosts: cache
+4.	  remote_user: root
+5.	  tasks:
+6.	    - copy:
+7.	        src: /root/httpd.conf
+8.	        dest:  /etc/httpd/conf/httpd.conf
+9.	        owner: apache
+10.	        group: apache
+11.	        mode: 0644
+12.	      tags: syncconf
+13.	      notify:
+14.	        - restart httpd
+15.	  handlers:
+16.	    - name: restart httpd
+17.	      service:
+18.	          name: httpd
+19.	          state: restarted
+20.	
+21.	
+22.	
+23.	
+24.	[root@ansible ansible]# ansible-playbook handers.yml 
+25.	
+26.	PLAY [cache] ***********************************************************************************
+27.	
+28.	TASK [Gathering Facts] ***********************************************************************************
+29.	ok: [cache]
+30.	
+31.	TASK [copy] ***********************************************************************************
+32.	ok: [cache]
+33.	
+34.	PLAY RECAP ***********************************************************************************
+35.	cache                      : ok=2    changed=0    unreachable=0    failed=0   
+36.	
+4 案例4：编写playbook
+4.1 问题
+本案例要求：
+•	把系统负载太高的Apache服务停止 
+4.2 步骤
+实现此案例需要按照如下步骤进行。
+步骤一：把系统负载太高的Apache服务停止
+1）当系统负载超过0.7时，则关掉httpd
+1.	[root@ansible ansible]# vim when.yml
+2.	---
+3.	- hosts: cache
+4.	  remote_user: root
+5.	  tasks:
+6.	    - shell: uptime | awk '{printf("%.2f\n",$(NF-2))}'
+7.	      register: result
+8.	    - service:
+9.	        name: httpd
+10.	        state: stopped
+11.	      when: result.stdout|float > 0.7
+12.	
+13.	[root@ansible ansible]# ansible-playbook when.yml 
+14.	
+15.	PLAY [cache] ***********************************************************************************
+16.	
+17.	TASK [Gathering Facts] ***********************************************************************************
+18.	ok: [cache]
+19.	
+20.	TASK [command] ***********************************************************************************
+21.	changed: [cache]
+22.	
+23.	TASK [service] ***********************************************************************************
+24.	changed: [cache]
+25.	
+26.	PLAY RECAP ***********************************************************************************
+27.	cache                      : ok=3    changed=2    unreachable=0    failed=0   
+步骤三：with_items标准循环
+1）with_item创建多用户
+1.	[root@ansible ansible]# vim adduser.yml
+2.	---
+3.	- hosts: web2
+4.	  remote_user: root
+5.	  tasks:
+6.	    - name: add users
+7.	      user: group=wheel password={{'123456' | password_hash('sha512')}} name={{item}}
+8.	      with_items: ["nb", "dd", "plj", "lx"]
+9.	
+10.	[root@ansible ansible]# ansible-playbook adduser.yml 
+11.	
+12.	PLAY [web2] ***********************************************************************************
+13.	
+14.	TASK [Gathering Facts] ***********************************************************************************
+15.	ok: [web2]
+16.	
+17.	TASK [add users] ***********************************************************************************
+18.	changed: [web2] => (item=nb)
+19.	changed: [web2] => (item=dd)
+20.	changed: [web2] => (item=plj)
+21.	changed: [web2] => (item=lx)
+22.	
+23.	PLAY RECAP ***********************************************************************************
+24.	web2                       : ok=2    changed=1    unreachable=0    failed=0
+2）为不同用户定义不同组
+1.	[root@ansible ansible]# vim adduser1.yml
+2.	---
+3.	- hosts: web2
+4.	  remote_user: root
+5.	  tasks:
+6.	    - name: add users
+7.	      user: group={{item.group}} password={{'123456' | password_hash('sha512')}} name={{item.name}}
+8.	      with_items:
+9.	        - {name: 'nb',  group: 'root'}
+10.	        - {name: 'dd',  group: 'root'}
+11.	        - {name: 'plj', group: 'wheel'}
+12.	        - {name: 'lx',  group: 'wheel'} 
+13.	
+14.	[root@ansible ansible]# ansible-playbook adduser1.yml 
+15.	PLAY [web2] ***********************************************************************************
+16.	
+17.	TASK [Gathering Facts] ***********************************************************************************
+18.	ok: [web2]
+19.	
+20.	TASK [add users] ***********************************************************************************
+21.	changed: [web2] => (item={u'group': u'root', u'name': u'nb'})
+22.	changed: [web2] => (item={u'group': u'root', u'name': u'dd'})
+23.	changed: [web2] => (item={u'group': u'wheel', u'name': u'plj'})
+24.	changed: [web2] => (item={u'group': u'wheel', u'name': u'lx'})
+25.	
+26.	PLAY RECAP ***********************************************************************************
+27.	web2                       : ok=2    changed=1    unreachable=0    failed=0  
+3）include and roles
+在编写playbook的时候随着项目越来越大，playbook越来越复杂。可以把一些play、task 或 handler放到其他文件中，通过包含进来是一个不错的选择
+roles像是加强版的include，它可以引入一个项目的文件和目录
+一般所需的目录层级有
+vars：变量层
+tasks：任务层
+handlers：触发条件
+files：文件
+template：模板
+default：默认，优先级最低
+1.	...
+2.	tasks:
+3.	   - include: tasks/setup.yml
+4.	   - include: tasks/users.yml user=plj 
+5.	//users.yml 中可以通过{{ user }}来使用这些变量
+6.	handlers:
+7.	  - include: handlers/handlers.yml
+步骤五：debug检测
+1.	[root@ansible ansible]# ansible-playbook  --syntax-check  http.yml  //检测语法
+2.	
+3.	playbook: http.yml
+4.	[root@ansible ansible]# ansible-playbook  -C  http.yml   //测试运行
+5.	
+6.	[root@ansible ansible]# ansible-playbook   http.yml  --list-tasks  
+7.	//显示要执行的工作
+8.	
+9.	playbook: http.yml
+10.	
+11.	  play #1 (cache): cache    TAGS: []
+12.	    tasks:
+13.	      install one specific version of Apache    TAGS: []
+14.	      lineinfile    TAGS: []
+15.	      replace    TAGS: []
+16.	      service    TAGS: []
+17.	      copy    TAGS: []
+18.	
+19.	
+20.	[root@ansible ansible]# vim debug.yml
+21.	---
+22.	- hosts: cache
+23.	  remote_user: root
+24.	  tasks:
+25.	    - shell: uptime |awk '{printf("%f\n",$(NF-2))}'
+26.	      register: result
+27.	    - service: 
+28.	         name: httpd 
+29.	         state: stopped
+30.	      when: result.stdout|float > 0.7
+31.	    - name: Show debug info
+32.	      debug: var=result
+33.	
+34.	[root@ansible ansible]# ansible-playbook debug.yml         //运行
+35.	
+36.	PLAY [cache] ***********************************************************************************
+37.	
+38.	TASK [Gathering Facts] ***********************************************************************************
+39.	ok: [cache]
+40.	
+41.	TASK [command] ***********************************************************************************
+42.	changed: [cache]
+43.	
+44.	TASK [command] ***********************************************************************************
+45.	skipping: [cache]
+46.	
+47.	TASK [Show debug info] ***********************************************************************************
+48.	ok: [cache] => {
+49.	    "result": {
+50.	        "changed": true, 
+51.	        "cmd": "uptime |awk '{printf(\"%f\\n\",$(NF-2))}'", 
+52.	        "delta": "0:00:00.005905", 
+53.	        "end": "2018-09-07 12:57:51.371013", 
+54.	        "failed": false, 
+55.	        "rc": 0, 
+56.	        "start": "2018-09-07 12:57:51.365108", 
+57.	        "stderr": "", 
+58.	        "stderr_lines": [], 
+59.	        "stdout": "0.000000", 
+60.	        "stdout_lines": [
+61.	            "0.000000"
+62.	        ]
+63.	    }
+64.	}
+65.	
+66.	PLAY RECAP ***********************************************************************************
+67.	cache                      : ok=3    changed=1    unreachable=0    failed=0   
+
