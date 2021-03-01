@@ -137,7 +137,7 @@ NSD ARCHITECTURE DAY01
 3.2 步骤
 实现此案例需要按照如下步骤进行。
 步骤一：给所有主机部署key，案例2已经做过，这里不再重复
-步骤二：在 inventory 文件中指定 key 的位置
+步骤二：在 inventory 文件中指定 key 的位置，这个inventory文件其实就是/etc/ansible/hosts。
 1.	[all:vars]
 2.	ansible_ssh_private_key_file="/root/.ssh/key"
 3.	
